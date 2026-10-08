@@ -3,12 +3,20 @@ import 'package:provider/provider.dart';
 import '../models/item.dart';
 import '../models/cart_model.dart';
 import '../repositories/item_repository.dart';
+import '../repositories/favorites_repository.dart'; 
 import 'checkout_page.dart';
 import '../services/gemini_service.dart';
 
 class HomePage extends StatefulWidget {
   final ItemRepository repository;
-  const HomePage({super.key, required this.repository});
+  final FavoritesRepository favoritesRepository; 
+
+  // อัปเดต Constructor ให้รับ favoritesRepository
+  const HomePage({
+    super.key, 
+    required this.repository, 
+    required this.favoritesRepository,
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -69,14 +77,45 @@ class _HomePageState extends State<HomePage> {
                 ),
                 title: Text(item.title),
                 subtitle: Text('${item.price} บาท'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.add_shopping_cart),
-                  onPressed: () {
-                    context.read<CartModel>().add(item);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('เพิ่ม "${item.title}" ลงตะกร้าแล้ว')),
-                    );
-                  },
+                // เปลี่ยนจากปุ่มตะกร้าเดี่ยวๆ เป็น Row ที่มี 2 ปุ่ม
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.favorite_border),
+                      onPressed: () async {
+                        try {
+                          // เรียกใช้เมธอด addFavorite
+                          await widget.favoritesRepository.addFavorite(
+                            item.id, 
+                            item.title, 
+                            item.price.toDouble(), // ป้องกัน error type ให้แปลงเป็น double
+                            item.imageUrl,
+                          );
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('เพิ่มลงรายการโปรดแล้ว')),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('เกิดข้อผิดพลาดในการเพิ่มรายการโปรด')),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add_shopping_cart),
+                      onPressed: () {
+                        context.read<CartModel>().add(item);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('เพิ่ม "${item.title}" ลงตะกร้าแล้ว')),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               );
             },

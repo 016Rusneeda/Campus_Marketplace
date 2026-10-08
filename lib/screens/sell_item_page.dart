@@ -3,9 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/gemini_vision_service.dart';
 import '../models/listing_draft.dart';
+import '../repositories/listing_draft_repository.dart'; // เพิ่ม import Repository
+import 'my_drafts_page.dart'; // เพิ่ม import หน้าแสดงรายการร่าง
 
 class SellItemPage extends StatefulWidget {
-  const SellItemPage({super.key});
+  final ListingDraftRepository draftRepository; // เพิ่มตัวแปร Repository
+
+  // อัปเดต Constructor ให้รับ draftRepository
+  const SellItemPage({
+    super.key, 
+    required this.draftRepository,
+  });
 
   @override
   State<SellItemPage> createState() => _SellItemPageState();
@@ -15,12 +23,10 @@ class _SellItemPageState extends State<SellItemPage> {
   File? _imageFile;
   bool _isLoading = false;
   
-  // เพิ่มตัวแปรสำหรับควบคุม TextField ทั้ง 3 ช่อง
   final _titleController = TextEditingController();
   final _categoryController = TextEditingController();
   final _descriptionController = TextEditingController();
 
-  // ตัวแปรเช็คว่าจะแสดงฟอร์มแก้ไขหรือไม่
   bool _showForm = false;
 
   static const String _prompt = '''
@@ -36,7 +42,6 @@ class _SellItemPageState extends State<SellItemPage> {
 
   @override
   void dispose() {
-    // ต้องทำลาย Controller เมื่อปิดหน้าจอเพื่อคืนหน่วยความจำให้ระบบ
     _titleController.dispose();
     _categoryController.dispose();
     _descriptionController.dispose();
@@ -50,13 +55,11 @@ class _SellItemPageState extends State<SellItemPage> {
     if (pickedFile != null) {
       setState(() {
         _imageFile = File(pickedFile.path);
-        // ซ่อนฟอร์มไปก่อนเมื่อเลือกรูปใหม่
         _showForm = false; 
       });
     }
   }
 
-  // ฟังก์ชันล้างข้อมูลหน้าจอ (เมื่อกดยืนยัน)
   void _clearForm() {
     setState(() {
       _imageFile = null;
@@ -70,7 +73,23 @@ class _SellItemPageState extends State<SellItemPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ลงประกาศขาย')),
+      appBar: AppBar(
+        title: const Text('ลงประกาศขาย'),
+        actions: [
+          // เพิ่มปุ่มประวัติเพื่อไปหน้าร่างประกาศของฉัน
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MyDraftsPage(repository: widget.draftRepository),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -99,23 +118,21 @@ class _SellItemPageState extends State<SellItemPage> {
                   : () async {
                       setState(() {
                         _isLoading = true;
-                        _showForm = false; // ซ่อนฟอร์มเก่าขณะโหลด
+                        _showForm = false; 
                       });
 
                       try {
-                        // ส่งภาพไปให้ Gemini วิเคราะห์
                         final resultMap = await GeminiVisionService()
-                            .analyzeProductImage(_imageFile!, _prompt);
+                            .analyzeProductImage(_imageFile!);
                         
                         final draft = ListingDraft.fromJson(resultMap);
 
-                        // นำข้อมูลที่ได้มาใส่ในช่อง TextField
                         if (context.mounted) {
                           setState(() {
                             _titleController.text = draft.title;
                             _categoryController.text = draft.category;
                             _descriptionController.text = draft.description;
-                            _showForm = true; // เปิดให้แสดงฟอร์มบนหน้าจอ
+                            _showForm = true; 
                           });
                         }
                       } catch (e) {
@@ -147,7 +164,6 @@ class _SellItemPageState extends State<SellItemPage> {
                 ],
               ),
 
-            // ส่วนของฟอร์มแก้ไขข้อมูลที่จะโผล่มาเมื่อ AI ทำงานเสร็จ
             if (_showForm) ...[
               const Divider(),
               const Text('ตรวจสอบและแก้ไขข้อมูล (AI แนะนำ)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
@@ -187,12 +203,31 @@ class _SellItemPageState extends State<SellItemPage> {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                onPressed: () {
-                  // แสดงแจ้งเตือนว่าสำเร็จ แล้วล้างค่าในฟอร์มกลับไปจุดเริ่มต้น
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('บันทึกร่างประกาศเรียบร้อยแล้ว (จำลอง)')),
+                onPressed: () async {
+                  // 1. ดึงข้อมูลล่าสุดจากฟอร์มที่ผู้ใช้อาจจะแก้ไขแล้ว
+                  final currentDraft = ListingDraft(
+                    title: _titleController.text,
+                    category: _categoryController.text,
+                    description: _descriptionController.text,
                   );
-                  _clearForm();
+
+                  try {
+                    // 2. เรียกใช้ Repository เพื่อบันทึกลง SQLite
+                    await widget.draftRepository.saveDraft(currentDraft, _imageFile!.path);
+                    
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('บันทึกร่างประกาศลงเครื่องเรียบร้อยแล้ว')),
+                      );
+                      _clearForm(); // ล้างฟอร์มเมื่อบันทึกเสร็จ
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('เกิดข้อผิดพลาดในการบันทึก: $e')),
+                      );
+                    }
+                  }
                 },
                 child: const Text('ยืนยันร่างประกาศ', style: TextStyle(fontSize: 16)),
               ),
