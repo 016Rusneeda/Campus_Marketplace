@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 
 class GeminiVisionService {
   // 1. ใส่คีย์ AQ. ของคุณตรงนี้
-  static const String _apiKey = 'YOUR_API_KEY_'; 
+  static const String _apiKey = 'YOUR_API_KEY_HERE'; 
   
   static const String _model = 'gemini-3.8-flash'; 
 

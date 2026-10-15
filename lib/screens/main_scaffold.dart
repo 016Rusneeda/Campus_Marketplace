@@ -7,13 +7,13 @@ import 'sell_item_page.dart';
 import 'favorites_page.dart';
 
 class MainScaffold extends StatefulWidget {
-  final ItemRepository itemRepository;
+  final List<ItemRepository> itemRepositories;
   final FavoritesRepository favoritesRepository;
   final ListingDraftRepository draftRepository;
 
   const MainScaffold({
     super.key,
-    required this.itemRepository,
+    required this.itemRepositories,
     required this.favoritesRepository,
     required this.draftRepository,
   });
@@ -29,10 +29,8 @@ class _MainScaffoldState extends State<MainScaffold> {
   Widget build(BuildContext context) {
     final pages = [
       HomePage(
-        repository: widget.itemRepository,
-        favoritesRepository: widget.favoritesRepository,
-      ),
-      
+        repositories: widget.itemRepositories,
+        favoritesRepository: widget.favoritesRepository,), 
       SellItemPage(draftRepository: widget.draftRepository), 
       FavoritesPage(repository: widget.favoritesRepository),
     ];

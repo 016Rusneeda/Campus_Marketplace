@@ -6,15 +6,16 @@ import '../repositories/item_repository.dart';
 import '../repositories/favorites_repository.dart'; 
 import 'checkout_page.dart';
 import '../services/gemini_service.dart';
+import '../services/auth_service.dart';
 
 class HomePage extends StatefulWidget {
-  final ItemRepository repository;
+  final List<ItemRepository> repositories;
   final FavoritesRepository favoritesRepository; 
 
   // อัปเดต Constructor ให้รับ favoritesRepository
   const HomePage({
     super.key, 
-    required this.repository, 
+    required this.repositories, 
     required this.favoritesRepository,
   });
 
@@ -28,7 +29,17 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _itemsFuture = widget.repository.getItems();
+    _loadItems(); // แยกฟังก์ชันโหลดข้อมูลออกมา
+  }
+
+  void _loadItems() {
+    // ดึงข้อมูลจากทุก Repository พร้อมกัน
+    _itemsFuture = Future.wait(
+      widget.repositories.map((repo) => repo.getItems())
+    ).then((listOfLists) {
+      // นำข้อมูลจากทุก List มารวมกันเป็น List เดียว
+      return listOfLists.expand((list) => list).toList();
+    });
   }
 
   @override
@@ -46,6 +57,14 @@ class _HomePageState extends State<HomePage> {
               context,
               MaterialPageRoute(builder: (_) => const CheckoutPage()),
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout), // ไอคอนออกจากระบบ
+            tooltip: 'ออกจากระบบ',
+            onPressed: () async {
+              // เรียกใช้คำสั่งให้ออกจากระบบ
+              await AuthService().signOut();
+            },
           ),
         ],
       ),
@@ -75,9 +94,55 @@ class _HomePageState extends State<HomePage> {
                   errorBuilder: (context, error, stackTrace) =>
                       const Icon(Icons.broken_image),
                 ),
-                title: Text(item.title),
+                
+                // --- ส่วนที่แสดงชื่อสินค้าพร้อม Badge แยกแหล่งที่มา ---
+                title: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis, // ตัดข้อความยาวๆ เป็น ...
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        // เปลี่ยนสีพื้นหลังและขอบตาม sellerId
+                        color: item.sellerId == null ? Colors.blue.shade50 : Colors.purple.shade50,
+                        border: Border.all(
+                          color: item.sellerId == null ? Colors.blue : Colors.purple,
+                        ),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            // เปลี่ยนไอคอนตาม sellerId
+                            item.sellerId == null ? Icons.storefront : Icons.school,
+                            size: 12,
+                            color: item.sellerId == null ? Colors.blue : Colors.purple,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            // เปลี่ยนข้อความตาม sellerId
+                            item.sellerId == null ? 'API ร้านค้า' : 'นักศึกษา',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: item.sellerId == null ? Colors.blue : Colors.purple,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                // ----------------------------------------------------
+                
                 subtitle: Text('${item.price} บาท'),
-                // เปลี่ยนจากปุ่มตะกร้าเดี่ยวๆ เป็น Row ที่มี 2 ปุ่ม
+                // เปลี่ยนจากปุ่มตะกร้าเดี่ยวๆ เป็น Row ที่มี 2 ปุ่ม (โปรด & ตะกร้า)
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

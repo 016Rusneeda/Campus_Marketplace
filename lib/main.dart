@@ -6,15 +6,22 @@ import 'repositories/item_repository_api.dart';
 import 'database/app_database.dart';
 import 'repositories/favorites_repository_drift.dart';
 import 'repositories/listing_draft_repository_drift.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'screens/login_page.dart';
+import 'screens/auth_gate.dart';
+import '../repositories/item_repository_firestore.dart';
 
-void main() {
-  // สร้าง AppDatabase เพียง 1 อินสแตนซ์ เพื่อใช้งานร่วมกันทั้งแอป
-  final db = AppDatabase(); 
 
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  final db = AppDatabase();
   runApp(
     ChangeNotifierProvider(
       create: (context) => CartModel(),
-      child: MyApp(db: db), // ส่ง db เข้าไปใน MyApp
+      child: MyApp(db: db), 
     ),
   );
 }
@@ -25,15 +32,15 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key, required this.db});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Campus Marketplace',
-      debugShowCheckedModeBanner: false,
-      home: MainScaffold(
-        itemRepository: ItemRepositoryApi(), 
-        favoritesRepository: FavoritesRepositoryDrift(db), 
-        draftRepository: ListingDraftRepositoryDrift(db), 
-      ),
-    );
-  }
+Widget build(BuildContext context) {
+  return MaterialApp(
+    title: 'Campus Marketplace',
+    debugShowCheckedModeBanner: false,
+    home: AuthGate(
+      itemRepositories: [ItemRepositoryApi(), ItemRepositoryFirestore()],
+      favoritesRepository: FavoritesRepositoryDrift(db),
+      draftRepository: ListingDraftRepositoryDrift(db),
+    ),
+  );
+}
 }

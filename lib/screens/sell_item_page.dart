@@ -3,13 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/gemini_vision_service.dart';
 import '../models/listing_draft.dart';
-import '../repositories/listing_draft_repository.dart'; // เพิ่ม import Repository
-import 'my_drafts_page.dart'; // เพิ่ม import หน้าแสดงรายการร่าง
+import '../repositories/listing_draft_repository.dart'; 
+import 'my_drafts_page.dart'; 
 
 class SellItemPage extends StatefulWidget {
-  final ListingDraftRepository draftRepository; // เพิ่มตัวแปร Repository
+  final ListingDraftRepository draftRepository; 
 
-  // อัปเดต Constructor ให้รับ draftRepository
   const SellItemPage({
     super.key, 
     required this.draftRepository,
@@ -26,8 +25,6 @@ class _SellItemPageState extends State<SellItemPage> {
   final _titleController = TextEditingController();
   final _categoryController = TextEditingController();
   final _descriptionController = TextEditingController();
-
-  bool _showForm = false;
 
   static const String _prompt = '''
 คุณคือผู้ช่วยเขียนประกาศขายของมือสองในตลาดนัดออนไลน์สำหรับนักศึกษามหาวิทยาลัย
@@ -55,7 +52,6 @@ class _SellItemPageState extends State<SellItemPage> {
     if (pickedFile != null) {
       setState(() {
         _imageFile = File(pickedFile.path);
-        _showForm = false; 
       });
     }
   }
@@ -63,7 +59,6 @@ class _SellItemPageState extends State<SellItemPage> {
   void _clearForm() {
     setState(() {
       _imageFile = null;
-      _showForm = false;
       _titleController.clear();
       _categoryController.clear();
       _descriptionController.clear();
@@ -76,7 +71,6 @@ class _SellItemPageState extends State<SellItemPage> {
       appBar: AppBar(
         title: const Text('ลงประกาศขาย'),
         actions: [
-          // เพิ่มปุ่มประวัติเพื่อไปหน้าร่างประกาศของฉัน
           IconButton(
             icon: const Icon(Icons.history),
             onPressed: () {
@@ -118,7 +112,6 @@ class _SellItemPageState extends State<SellItemPage> {
                   : () async {
                       setState(() {
                         _isLoading = true;
-                        _showForm = false; 
                       });
 
                       try {
@@ -132,7 +125,6 @@ class _SellItemPageState extends State<SellItemPage> {
                             _titleController.text = draft.title;
                             _categoryController.text = draft.category;
                             _descriptionController.text = draft.description;
-                            _showForm = true; 
                           });
                         }
                       } catch (e) {
@@ -164,9 +156,10 @@ class _SellItemPageState extends State<SellItemPage> {
                 ],
               ),
 
-            if (_showForm) ...[
+            // --- เปลี่ยนเงื่อนไข: ถ้ามีรูปภาพปุ๊บ ให้แสดงฟอร์มทันที ---
+            if (_imageFile != null) ...[
               const Divider(),
-              const Text('ตรวจสอบและแก้ไขข้อมูล (AI แนะนำ)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+              const Text('กรอกข้อมูลสินค้า', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
               const SizedBox(height: 16),
               
               TextField(
@@ -204,7 +197,6 @@ class _SellItemPageState extends State<SellItemPage> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 onPressed: () async {
-                  // 1. ดึงข้อมูลล่าสุดจากฟอร์มที่ผู้ใช้อาจจะแก้ไขแล้ว
                   final currentDraft = ListingDraft(
                     title: _titleController.text,
                     category: _categoryController.text,
@@ -212,14 +204,13 @@ class _SellItemPageState extends State<SellItemPage> {
                   );
 
                   try {
-                    // 2. เรียกใช้ Repository เพื่อบันทึกลง SQLite
                     await widget.draftRepository.saveDraft(currentDraft, _imageFile!.path);
                     
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('บันทึกร่างประกาศลงเครื่องเรียบร้อยแล้ว')),
                       );
-                      _clearForm(); // ล้างฟอร์มเมื่อบันทึกเสร็จ
+                      _clearForm(); 
                     }
                   } catch (e) {
                     if (context.mounted) {
@@ -229,7 +220,7 @@ class _SellItemPageState extends State<SellItemPage> {
                     }
                   }
                 },
-                child: const Text('ยืนยันร่างประกาศ', style: TextStyle(fontSize: 16)),
+                child: const Text('บันทึกเป็นร่าง', style: TextStyle(fontSize: 16)),
               ),
             ]
           ],
